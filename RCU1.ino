@@ -127,13 +127,13 @@ char middleBAT[] {
 };
 
 char lowBAT[] {
-  0b00100,
-  0b01110,
-  0b01010,
-  0b01010,
-  0b01010,
-  0b01010,
-  0b01110,
+  0b01000,
+  0b11101,
+  0b10101,
+  0b10101,
+  0b10100,
+  0b10101,
+  0b11100,
   0b00000,
 };
 //////// MONOPHONY ////////
@@ -499,10 +499,10 @@ void loop() {
   static unsigned long timer150ms;
   static int tempA5;
 
-  if (analogRead(5) - tempA5 >= 1) tempA5 = analogRead(5);
+  if ((analogRead(5) - tempA5) >= 1) tempA5 = analogRead(5);
   if (tempA5 <= 685) BAT = 3;
   else if (tempA5 <= 700) BAT = 2;
-  else if (tempA5 > 700) BAT = 1;
+  else if (tempA5 > 701) BAT = 1;
 
   if ((millis() - timerBrightness >= (!is_lowPowerMode_enabled ? 10000 : 5000)) & (millis() - timerBrightness < (!is_lowPowerMode_enabled ? 15000 : 10000))) {
     analogWrite(brPin, 5);
@@ -553,11 +553,6 @@ void loop() {
       lcd.setCursor(14, 0);
       if (is_lowPowerMode_enabled) lcd.print("L");
 
-      lcd.setCursor(15, 0);
-      if (BAT == 3) lcd.write(5);
-      else if (BAT == 2) lcd.write(6);
-      else if (BAT == 1) lcd.write(7);
-
       if (is_labelView) {
         lcd.setCursor(4, 1);
         lcd.print("RadiC-U1");
@@ -567,6 +562,11 @@ void loop() {
         else lcd.print("Have a message");
       }
       is_labelView = !is_labelView;
+      
+      lcd.setCursor(15,0);
+      if (BAT == 3) lcd.write(5);
+      else if (BAT == 2) lcd.write(6);
+      else if (BAT == 1) lcd.write(7);
     }
     if (button() == 1) {
       while (button() != 0) {}
