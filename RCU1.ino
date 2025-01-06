@@ -20,7 +20,8 @@
 #include "nRF24L01.h"
 #include "RF24.h"
 
-#include "button.h"
+#define zoomerPin A1
+#define brPin 10
 
 LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
 
@@ -28,20 +29,14 @@ RF24 radio(A3, A2);
 
 //////// VARIABLES ////////
 
-byte address[][6] = { "1Node", "2Node", "3Node", "4Node", "5Node", "6Node" };
-const int zoomerPin = A1;
-const int brPin = 10;
+const byte address[][6] = { "1Node", "2Node", "3Node", "4Node", "5Node", "6Node" };
 
-unsigned long timerLobby;
-bool is_labelView;
 unsigned long timerBrightness;
-unsigned long timer150ms;
-byte senderCursorPos = 0;
-byte tempSender;
 
 int MODE = "init";
 bool is_have_signal = false;
-byte select;
+byte BAT = 3;
+bool is_lowPowerMode_enabled = false;
 
 bool is_sound_enabled;  // EEPROM[0]
 byte channel;           // EEPROM[1]
@@ -109,15 +104,37 @@ char play[] {
   0b00000
 };
 
-char lock[] {
+char maxBAT[] {
   0b00100,
+  0b01110,
+  0b01110,
+  0b01110,
+  0b01110,
+  0b01110,
+  0b01110,
+  0b00000,
+};
+
+char middleBAT[] {
+  0b00100,
+  0b01110,
+  0b01010,
+  0b01010,
+  0b01110,
+  0b01110,
+  0b01110,
+  0b00000,
+};
+
+char lowBAT[] {
+  0b00100,
+  0b01110,
   0b01010,
   0b01010,
   0b01010,
-  0b11111,
-  0b11011,
-  0b11111,
-  0b00000
+  0b01010,
+  0b01110,
+  0b00000,
 };
 //////// MONOPHONY ////////
 
@@ -395,14 +412,19 @@ void mp1(void) {
 //////// CODE ////////
 
 void setup() {
-  lcd.begin(16, 2);
+  power.hardwareDisable(PWR_I2C | PWR_USB | PWR_UART0);
+  power.setSleepMode(IDLE_SLEEP);
+  power.setSystemPrescaler(PRESCALER_2);
 
+  lcd.begin(16, 2);
   lcd.createChar(0, soundOn);
   lcd.createChar(1, soundOff);
   lcd.createChar(2, noSignal);
   lcd.createChar(3, haveSignal);
   lcd.createChar(4, play);
-  lcd.createChar(5, lock);
+  lcd.createChar(5, maxBAT);
+  lcd.createChar(6, middleBAT);
+  lcd.createChar(7, lowBAT);
   lcd.clear();
   lcd.setCursor(7, 0);
   lcd.print("Ra");
@@ -427,18 +449,11 @@ void setup() {
   delay(500);
   digitalWrite(13, LOW);
 
-  if (EEPROM[0] == 255) {
-    EEPROM.update(0, 1);
-  }
-  if (EEPROM[1] == 255) {
-    EEPROM.update(1, 1);
-  }
-  if (EEPROM[2] == 255) {
-    EEPROM.update(2, 3);
-  }
-  if (EEPROM[3] == 255) {
-    EEPROM.update(3, 1);
-  }
+  if (EEPROM[0] == 255) EEPROM.update(0, 1);
+  if (EEPROM[1] == 255) EEPROM.update(1, 1);
+  if (EEPROM[2] == 255) EEPROM.update(2, 3);
+  if (EEPROM[3] == 255) EEPROM.update(3, 1);
+
   EEPROM.get(0, is_sound_enabled);
   EEPROM.get(1, channel);
   EEPROM.get(2, brDisplay);
@@ -472,15 +487,24 @@ void setup() {
     tone(zoomerPin, 78, 600);
   }
   lcd.clear();
-  select = 1;
   MODE = "lobby";
   timerBrightness = millis();
 }
 
+
+
 void loop() {
   if (radio.available() && is_have_signal) receiving();
 
-  if ((millis() - timerBrightness >= 10000) & (millis() - timerBrightness < 15000)) {
+  static unsigned long timer150ms;
+  static int tempA5;
+
+  if (analogRead(5) - tempA5 >= 1) tempA5 = analogRead(5);
+  if (tempA5 <= 685) BAT = 3;
+  else if (tempA5 <= 700) BAT = 2;
+  else if (tempA5 > 700) BAT = 1;
+
+  if ((millis() - timerBrightness >= (!is_lowPowerMode_enabled ? 10000 : 5000)) & (millis() - timerBrightness < (!is_lowPowerMode_enabled ? 15000 : 10000))) {
     analogWrite(brPin, 5);
   }
   if (button() > 0) {
@@ -488,16 +512,16 @@ void loop() {
     analogWrite(brPin, brDisplay * 10);
     lcd.display();
   }
-  if (millis() - timerBrightness >= 15000) {
+  if (millis() - timerBrightness >= (!is_lowPowerMode_enabled ? 15000 : 10000)) {
     analogWrite(brPin, 0);
     lcd.noDisplay();
     MODE = "sleep";
   }
 
-
+  static byte select;
 
   if (MODE == "sleep") {
-    power.setSleepMode(STANDBY_SLEEP); // режим сна (по умолчанию POWERDOWN_SLEEP)
+    power.sleep(SLEEP_FOREVER);
     if (button() >= 1) {
       while (button() != 0) {}
       power.wakeUp();
@@ -512,6 +536,8 @@ void loop() {
 
 
   if (MODE == "lobby") {
+    static bool is_labelView;
+    static unsigned long timerLobby;
     if (millis() - timerLobby >= 3000) {
       timerLobby = millis();
       lcd.clear();
@@ -520,9 +546,17 @@ void loop() {
       lcd.setCursor(2, 0);
       lcd.print("CH");
       lcd.print(channel);
-      lcd.setCursor(15, 0);
+      lcd.setCursor(6, 0);
       if (is_sound_enabled) lcd.write(char(0));
       else lcd.write(char(1));
+
+      lcd.setCursor(14, 0);
+      if (is_lowPowerMode_enabled) lcd.print("L");
+
+      lcd.setCursor(15, 0);
+      if (BAT == 3) lcd.write(5);
+      else if (BAT == 2) lcd.write(6);
+      else if (BAT == 1) lcd.write(7);
 
       if (is_labelView) {
         lcd.setCursor(4, 1);
@@ -541,7 +575,7 @@ void loop() {
     }
   }
 
-
+  
 
   if (MODE == "menu") {
     if (button() == 1) {
@@ -561,20 +595,25 @@ void loop() {
         EEPROM.update(0, bool(is_sound_enabled));
       }
       if (select == 5) {
-        select = 1;
-        MODE = "settings";
+        is_lowPowerMode_enabled = !is_lowPowerMode_enabled;
+        if (is_lowPowerMode_enabled) radio.setPALevel(RF24_PA_LOW);
+        else radio.setPALevel(RF24_PA_MAX);
       }
       if (select == 6) {
         select = 1;
-        MODE = "monophonyPlayer";
+        MODE = "settings";
       }
       if (select == 7) {
+        select = 1;
+        MODE = "monophonyPlayer";
+      }
+      if (select == 8) {
         MODE = "aboutFirmware";
       }
     }
     if (button() == 2) {MODE = "lobby"; lcd.clear();}
     if (button() == 3 && select != 1) { while (button() != 0) {}; select--; }
-    if (button() == 4 && select != 7) { while (button() != 0) {}; select++; }
+    if (button() == 4 && select != 8) { while (button() != 0) {}; select++; }
 
     if (millis() - timer150ms >= 150) {
       timer150ms = millis();
@@ -584,7 +623,7 @@ void loop() {
       lcd.print("MENU");
       lcd.setCursor(13, 0);
       lcd.print(select);
-      lcd.print("/7");
+      lcd.print("/8");
       lcd.setCursor(0, 1);
       lcd.write(165);
       lcd.setCursor(2, 1);
@@ -609,13 +648,23 @@ void loop() {
           }
           break;
         case 5:
-          lcd.print("Settings");
+          lcd.print("PowerSave:");
+          if (is_lowPowerMode_enabled) {
+            lcd.setCursor(14, 1);
+            lcd.print("ON");
+          } else {
+            lcd.setCursor(13, 1);
+            lcd.print("OFF");
+          }
           break;
         case 6:
-          lcd.print("Monophony");
+          lcd.print("Settings");
           break;
         case 7:
-          lcd.print("About firware");
+          lcd.print("Monophony");
+          break;
+        case 8:
+          lcd.print("About firmware");
           break;
       }
     }
@@ -624,6 +673,8 @@ void loop() {
 
 
   if (MODE == "sender") {
+    static byte senderCursorPos = 0;
+
     if (button() == 1) {
       while (button() != 0) {}
       MODE = "TX";
@@ -1021,11 +1072,10 @@ void loop() {
   if (MODE == "aboutFirmware") {
     if (millis() - timer150ms >= 150) {
       timer150ms = millis();
-      delay(50);
       lcd.clear();
       lcd.print("OS:");
-      lcd.setCursor(12, 0);
-      lcd.print("RCU1");
+      lcd.setCursor(7, 0);
+      lcd.print("RCU1 v1.1");
       lcd.setCursor(0, 1);
       lcd.print("By:");
       lcd.setCursor(10, 1);
@@ -1267,4 +1317,15 @@ void receiving(void) {
   delay(5000);
   MODE = "lobby";
   is_have_message = true;
+}
+
+
+
+byte button(void) {
+  if (analogRead(0) < 100) return 5;
+  else if (analogRead(0) < 200) return 3;
+  else if (analogRead(0) < 400) return 4;
+  else if (analogRead(0) < 500) return 2;
+  else if (analogRead(0) < 800) return 1;
+  else return 0;
 }
