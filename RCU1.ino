@@ -93,7 +93,7 @@ char haveSignal[]{
   0b00000
 };
 
-char play[] {
+char play[]{
   0b00000,
   0b01000,
   0b01100,
@@ -104,7 +104,7 @@ char play[] {
   0b00000
 };
 
-char maxBAT[] {
+char maxBAT[]{
   0b00100,
   0b01110,
   0b01110,
@@ -115,7 +115,7 @@ char maxBAT[] {
   0b00000,
 };
 
-char middleBAT[] {
+char middleBAT[]{
   0b00100,
   0b01110,
   0b01010,
@@ -126,7 +126,7 @@ char middleBAT[] {
   0b00000,
 };
 
-char lowBAT[] {
+char lowBAT[]{
   0b01000,
   0b11101,
   0b10101,
@@ -139,7 +139,7 @@ char lowBAT[] {
 //////// MONOPHONY ////////
 
 void mp1(void) {
-  lcd.setCursor(0,1);
+  lcd.setCursor(0, 1);
   lcd.write(char(4));
   tone(zoomerPin, 246, 300.0);
   delay(333.333333333);
@@ -444,8 +444,10 @@ void setup() {
   lcd.clear();
   lcd.setCursor(4, 0);
   lcd.print("RadiC-U1");
-  lcd.setCursor(3, 1);
-  lcd.print("Starting.");
+  lcd.setCursor(0, 1);
+  lcd.print("[              ]");
+  lcd.setCursor(1, 1);
+  lcd.print("====");
   delay(500);
   digitalWrite(13, LOW);
 
@@ -459,7 +461,7 @@ void setup() {
   EEPROM.get(2, brDisplay);
   EEPROM.get(3, ring);
   delay(500);
-  lcd.print(".");
+  lcd.print("=====");
 
   analogWrite(brPin, brDisplay * 10);
 
@@ -471,12 +473,12 @@ void setup() {
   radio.setPALevel(RF24_PA_MAX);    // уровень мощности передатчика. На выбор RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH, RF24_PA_MAX
   radio.setDataRate(RF24_250KBPS);  // скорость обмена. На выбор RF24_2MBPS, RF24_1MBPS, RF24_250KBPS
   radio.setAutoAck(1);              // режим подтверждения приёма, 1 вкл 0 выкл
-  radio.setRetries(5, 10);          // (время между попыткой достучаться, число попыток)
+  radio.setRetries(15, 10);          // (время между попыткой достучаться, число попыток)
   radio.enableAckPayload();         // разрешить отсылку данных в ответ на входящий сигнал
   radio.startListening();
   radio.powerUp();
   delay(500);
-  lcd.print(".");
+  lcd.print("=====");
   if (is_sound_enabled) {
     tone(zoomerPin, 1046, 100);
     delay(450);
@@ -486,6 +488,7 @@ void setup() {
     delay(250);
     tone(zoomerPin, 78, 600);
   }
+  delay(250);
   lcd.clear();
   MODE = "lobby";
   timerBrightness = millis();
@@ -538,6 +541,7 @@ void loop() {
   if (MODE == "lobby") {
     static bool is_labelView;
     static unsigned long timerLobby;
+
     if (millis() - timerLobby >= 3000) {
       timerLobby = millis();
       lcd.clear();
@@ -562,8 +566,8 @@ void loop() {
         else lcd.print("Have a message");
       }
       is_labelView = !is_labelView;
-      
-      lcd.setCursor(15,0);
+
+      lcd.setCursor(15, 0);
       if (BAT == 3) lcd.write(5);
       else if (BAT == 2) lcd.write(6);
       else if (BAT == 1) lcd.write(7);
@@ -575,7 +579,7 @@ void loop() {
     }
   }
 
-  
+
 
   if (MODE == "menu") {
     if (button() == 1) {
@@ -611,9 +615,18 @@ void loop() {
         MODE = "aboutFirmware";
       }
     }
-    if (button() == 2) {MODE = "lobby"; lcd.clear();}
-    if (button() == 3 && select != 1) { while (button() != 0) {}; select--; }
-    if (button() == 4 && select != 8) { while (button() != 0) {}; select++; }
+    if (button() == 2) {
+      MODE = "lobby";
+      lcd.clear();
+    }
+    if (button() == 3 && select != 1) {
+      while (button() != 0) {};
+      select--;
+    }
+    if (button() == 4 && select != 8) {
+      while (button() != 0) {};
+      select++;
+    }
 
     if (millis() - timer150ms >= 150) {
       timer150ms = millis();
@@ -674,17 +687,20 @@ void loop() {
 
   if (MODE == "sender") {
     static byte senderCursorPos = 0;
+    static unsigned long buttonDelay;
 
     if (button() == 1) {
       while (button() != 0) {}
       MODE = "TX";
       lcd.clear();
       lcd.noCursor();
-      lcd.setCursor(5, 0);
-      lcd.print("Sending");
-      lcd.setCursor(2, 1);
-      lcd.print("Message...");
-      delay(500);
+      lcd.setCursor(0, 0);
+      lcd.print("Sending message");
+      lcd.setCursor(0, 1);
+      lcd.print("[=======       ]");
+      lcd.setCursor(1, 1);
+      delay(250);
+      lcd.print("=======");
       radio.stopListening();
       if (radio.write(&SentMessage, 32, true)) {
         lcd.clear();
@@ -697,7 +713,6 @@ void loop() {
         lcd.setCursor(5, 1);
         lcd.print("Error!");
       }
-
       delay(3000);
       radio.startListening();
       lcd.cursor();
@@ -709,15 +724,19 @@ void loop() {
       MODE = "menu";
     }
     if (button() == 3) {
-      while (button() != 0) {}
-      SentMessage[senderCursorPos]--;
+      if (millis() - buttonDelay >= 200) {
+        buttonDelay = millis();
+        SentMessage[senderCursorPos]--;
+      }
       if (SentMessage[senderCursorPos] == 255) {
         SentMessage[senderCursorPos] = 40;
       }
     }
     if (button() == 4) {
-      while (button() != 0) {}
-      SentMessage[senderCursorPos]++;
+      if (millis() - buttonDelay >= 200) {
+        buttonDelay = millis();
+        SentMessage[senderCursorPos]++;
+      }
       if (SentMessage[senderCursorPos] == 40) {
         SentMessage[senderCursorPos] = 0;
       }
@@ -1039,7 +1058,7 @@ void loop() {
     if (millis() - timer150ms >= 150) {
       timer150ms = millis();
       lcd.clear();
-      lcd.setCursor(2,0);
+      lcd.setCursor(2, 0);
       lcd.print("SETTINGS");
       lcd.setCursor(13, 0);
       lcd.print(select);
@@ -1049,17 +1068,17 @@ void loop() {
       lcd.setCursor(2, 1);
       if (select == 1) {
         lcd.print("RingSound:");
-        lcd.setCursor(15,1);
+        lcd.setCursor(15, 1);
         lcd.print(ring);
       }
       if (select == 2) {
         lcd.print("Channel:");
-        lcd.setCursor(15,1);
+        lcd.setCursor(15, 1);
         lcd.print(channel);
       }
       if (select == 3) {
         lcd.print("Brightness:");
-        lcd.setCursor(13,1);
+        lcd.setCursor(13, 1);
         lcd.print(brDisplay * 10);
         lcd.setCursor(15, 1);
         lcd.print("%");
@@ -1094,9 +1113,9 @@ void loop() {
       while (button() != 0) {}
       if (is_sound_enabled) {
         switch (select) {
-        case 1:
-         mp1();
-         break;
+          case 1:
+            mp1();
+            break;
         }
       }
     }
@@ -1128,7 +1147,11 @@ void loop() {
 
 
   if (MODE == "reader") {
-    if (button() == 2) {while (button() != 0) {} is_have_message = false; MODE = "menu";}
+    if (button() == 2) {
+      while (button() != 0) {}
+      is_have_message = false;
+      MODE = "menu";
+    }
     if (millis() - timer150ms > 100) {
       timer150ms = millis();
       lcd.clear();
@@ -1181,8 +1204,7 @@ void loop() {
             case 40: lcd.print("0"); break;
           }
         }
-      }
-      else {
+      } else {
         lcd.setCursor(4, 0);
         lcd.print("No have");
         lcd.setCursor(4, 1);
@@ -1322,10 +1344,25 @@ void receiving(void) {
 
 
 byte button(void) {
-  if (analogRead(0) < 100) return 5;
-  else if (analogRead(0) < 200) return 3;
-  else if (analogRead(0) < 400) return 4;
-  else if (analogRead(0) < 500) return 2;
-  else if (analogRead(0) < 800) return 1;
-  else return 0;
+  byte val = map(analogRead(A0), 0, 1023, 0, 10);
+  switch (val) {
+    case 0:
+      return 5;
+      break;
+    case 1:
+      return 3;
+      break;
+    case 3:
+      return 4;
+      break;
+    case 4:
+      return 2;
+      break;
+    case 7:
+      return 1;
+      break;
+    default:
+      return 0;
+      break;
+  }
 }
