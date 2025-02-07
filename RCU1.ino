@@ -22,6 +22,7 @@
 
 #define zoomerPin A1
 #define brPin 10
+#define LEDPin 2
 
 LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
 
@@ -37,6 +38,8 @@ int MODE = "init";
 bool is_have_signal = false;
 byte BAT = 3;
 bool is_lowPowerMode_enabled = false;
+bool is_blink_message_enabled = true;
+bool is_blink_LED_enabled = true;
 
 bool is_sound_enabled;  // EEPROM[0]
 byte channel;           // EEPROM[1]
@@ -83,14 +86,14 @@ char noSignal[]{
 };
 
 char haveSignal[]{
-  0b00000,
-  0b00100,
-  0b00000,
-  0b01010,
-  0b00100,
-  0b10001,
+  0b11111,
+  0b10101,
   0b01110,
-  0b00000
+  0b00100,
+  0b00100,
+  0b00100,
+  0b01110,
+  0b00000,
 };
 
 char play[]{
@@ -449,17 +452,22 @@ void setup() {
   lcd.setCursor(1, 1);
   lcd.print("====");
   delay(500);
-  digitalWrite(13, LOW);
+  pinMode(LEDPin, OUTPUT);
+  digitalWrite(LEDPin, LOW);
 
   if (EEPROM[0] == 255) EEPROM.update(0, 1);
   if (EEPROM[1] == 255) EEPROM.update(1, 1);
   if (EEPROM[2] == 255) EEPROM.update(2, 3);
   if (EEPROM[3] == 255) EEPROM.update(3, 1);
+  if (EEPROM[4] == 255) EEPROM.update(4, 1);
+  if (EEPROM[5] == 255) EEPROM.update(5, 1);
 
   EEPROM.get(0, is_sound_enabled);
   EEPROM.get(1, channel);
   EEPROM.get(2, brDisplay);
   EEPROM.get(3, ring);
+  EEPROM.get(4, is_blink_message_enabled);
+  EEPROM.get(5, is_blink_LED_enabled);
   delay(500);
   lcd.print("=====");
 
@@ -473,7 +481,7 @@ void setup() {
   radio.setPALevel(RF24_PA_MAX);    // уровень мощности передатчика. На выбор RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH, RF24_PA_MAX
   radio.setDataRate(RF24_250KBPS);  // скорость обмена. На выбор RF24_2MBPS, RF24_1MBPS, RF24_250KBPS
   radio.setAutoAck(1);              // режим подтверждения приёма, 1 вкл 0 выкл
-  radio.setRetries(15, 10);          // (время между попыткой достучаться, число попыток)
+  radio.setRetries(15, 10);         // (время между попыткой достучаться, число попыток)
   radio.enableAckPayload();         // разрешить отсылку данных в ответ на входящий сигнал
   radio.startListening();
   radio.powerUp();
@@ -497,17 +505,28 @@ void setup() {
 
 
 void loop() {
-  if (radio.available() && is_have_signal) receiving();
+  if (radio.available() && is_have_signal)
+    if (MODE != "distance_test") receiving();
 
   static unsigned long timer150ms;
   static int tempA5;
+
+  static unsigned long timerLED;
+
+  if (is_blink_LED_enabled) {
+    if (millis() - timerLED >= (!is_lowPowerMode_enabled ? 10000 : 15000)) {
+      timerLED = millis();
+      digitalWrite(LEDPin, HIGH);
+    } else if (millis() - timerLED >= 5) digitalWrite(LEDPin, LOW);
+  }
 
   if ((analogRead(5) - tempA5) >= 1) tempA5 = analogRead(5);
   if (tempA5 <= 685) BAT = 3;
   else if (tempA5 <= 700) BAT = 2;
   else if (tempA5 > 701) BAT = 1;
-
-  if ((millis() - timerBrightness >= (!is_lowPowerMode_enabled ? 10000 : 5000)) & (millis() - timerBrightness < (!is_lowPowerMode_enabled ? 15000 : 10000))) {
+  
+  if ((millis() - timerBrightness >= (!is_lowPowerMode_enabled ? 10000 : 5000))
+      & (millis() - timerBrightness < (!is_lowPowerMode_enabled ? 15000 : 10000))) {
     analogWrite(brPin, 5);
   }
   if (button() > 0) {
@@ -515,15 +534,19 @@ void loop() {
     analogWrite(brPin, brDisplay * 10);
     lcd.display();
   }
-  if (millis() - timerBrightness >= (!is_lowPowerMode_enabled ? 15000 : 10000)) {
+  if (millis() - timerBrightness >= (!is_lowPowerMode_enabled ? 15000 : 10000) && MODE != "sleep") {
     analogWrite(brPin, 0);
     lcd.noDisplay();
+    lcd.clear();
+    lcd.setCursor(1, 0);
+    lcd.print("Have a message");
     MODE = "sleep";
   }
 
   static byte select;
 
   if (MODE == "sleep") {
+    static unsigned long timerSleep;
     power.sleep(SLEEP_FOREVER);
     if (button() >= 1) {
       while (button() != 0) {}
@@ -531,8 +554,38 @@ void loop() {
       timerBrightness = millis();
       analogWrite(brPin, brDisplay * 10);
       lcd.display();
+      lcd.clear();
       lcd.noCursor();
       MODE = "lobby";
+    }
+    if (is_have_message && !is_lowPowerMode_enabled && is_blink_message_enabled && (millis() - timerSleep >= 5000)) {
+      timerSleep = millis();
+      lcd.display();
+      analogWrite(brPin, 2);
+      delay(30);
+      analogWrite(brPin, 4);
+      delay(30);
+      analogWrite(brPin, 5);
+      delay(60);
+      analogWrite(brPin, 4);
+      delay(30);
+      analogWrite(brPin, 2);
+      delay(30);
+      analogWrite(brPin, 0);
+      delay(90);
+
+      analogWrite(brPin, 2);
+      delay(30);
+      analogWrite(brPin, 4);
+      delay(30);
+      analogWrite(brPin, 5);
+      delay(60);
+      analogWrite(brPin, 4);
+      delay(30);
+      analogWrite(brPin, 2);
+      delay(30);
+      analogWrite(brPin, 0);
+      lcd.noCursor();
     }
   }
 
@@ -584,16 +637,12 @@ void loop() {
   if (MODE == "menu") {
     if (button() == 1) {
       while (button() != 0) {}
-      if (select == 1) {
-        MODE = "sender";
-      }
+      if (select == 1) MODE = "sender";
       if (select == 2) {
         MODE = "senderqm";
         select = 1;
       }
-      if (select == 3) {
-        MODE = "reader";
-      }
+      if (select == 3) MODE = "reader";
       if (select == 4) {
         is_sound_enabled = !is_sound_enabled;
         EEPROM.update(0, bool(is_sound_enabled));
@@ -605,13 +654,17 @@ void loop() {
       }
       if (select == 6) {
         select = 1;
-        MODE = "settings";
-      }
-      if (select == 7) {
-        select = 1;
         MODE = "monophonyPlayer";
       }
+      if (select == 7) {
+        lcd.clear();
+        MODE = "distance_test";
+      }
       if (select == 8) {
+        select = 1;
+        MODE = "settings";
+      }
+      if (select == 9) {
         MODE = "aboutFirmware";
       }
     }
@@ -623,7 +676,7 @@ void loop() {
       while (button() != 0) {};
       select--;
     }
-    if (button() == 4 && select != 8) {
+    if (button() == 4 && select != 9) {
       while (button() != 0) {};
       select++;
     }
@@ -636,20 +689,14 @@ void loop() {
       lcd.print("MENU");
       lcd.setCursor(13, 0);
       lcd.print(select);
-      lcd.print("/8");
+      lcd.print("/9");
       lcd.setCursor(0, 1);
       lcd.write(165);
       lcd.setCursor(2, 1);
       switch (select) {
-        case 1:
-          lcd.print("Sender");
-          break;
-        case 2:
-          lcd.print("Sender Q-M");
-          break;
-        case 3:
-          lcd.print("Read message");
-          break;
+        case 1: lcd.print("Sender"); break;
+        case 2: lcd.print("Sender Q-M"); break;
+        case 3: lcd.print("Read message"); break;
         case 4:
           lcd.print("Sound:");
           if (is_sound_enabled) {
@@ -658,8 +705,7 @@ void loop() {
           } else {
             lcd.setCursor(13, 1);
             lcd.print("OFF");
-          }
-          break;
+          } break;
         case 5:
           lcd.print("PowerSave:");
           if (is_lowPowerMode_enabled) {
@@ -668,17 +714,11 @@ void loop() {
           } else {
             lcd.setCursor(13, 1);
             lcd.print("OFF");
-          }
-          break;
-        case 6:
-          lcd.print("Settings");
-          break;
-        case 7:
-          lcd.print("Monophony");
-          break;
-        case 8:
-          lcd.print("About firmware");
-          break;
+          } break;
+        case 6: lcd.print("Monophony"); break;
+        case 7: lcd.print("Distance test"); break;
+        case 8: lcd.print("Settings"); break;
+        case 9: lcd.print("About firmware"); break;
       }
     }
   }
@@ -695,6 +735,7 @@ void loop() {
       lcd.clear();
       lcd.noCursor();
       lcd.setCursor(0, 0);
+      if (is_blink_LED_enabled) digitalWrite(LEDPin, HIGH);
       lcd.print("Sending message");
       lcd.setCursor(0, 1);
       lcd.print("[=======       ]");
@@ -713,6 +754,7 @@ void loop() {
         lcd.setCursor(5, 1);
         lcd.print("Error!");
       }
+      digitalWrite(LEDPin, LOW);
       delay(3000);
       radio.startListening();
       lcd.cursor();
@@ -967,6 +1009,94 @@ void loop() {
   }
 
 
+  if (MODE == "distance_test") {
+    static byte step = 0;
+    static bool tx_rx;
+    static bool signal = true;
+    static byte Scroll = 0;
+    static const byte testMessage[] = { 1, 1, 1, 1 };
+    static unsigned long timer200ms;
+    if (button() == 1) {
+      while (button() != 0) {}
+      if (step == 0) step = 1;
+    }
+    if (button() == 2) {
+      while (button() != 0) {}
+      step = 0;
+      Scroll = 0;
+      memset(ReceivedMessage, 0, 32);
+      lcd.clear();
+      MODE = "menu";
+    }
+    if (button() == 3) {
+      while (button() != 0) {}
+      if (step == 1) {
+        tx_rx = false;
+        step = 2;
+        radio.stopListening();
+      }
+    }
+    if (button() == 4) {
+      while (button() != 0) {}
+      if (step == 1) {
+        tx_rx = true;
+        step = 2;
+        radio.startListening();
+      }
+    }
+    if (millis() - timer150ms >= 1000) {
+      timer150ms = millis();
+      if (step == 0) {
+        lcd.clear();
+        if (Scroll == 0) lcd.print("Select this mode");
+        if (Scroll == 1) lcd.print("on another RadiC");
+        if (Scroll == 2) lcd.print("and click OK");
+        Scroll++;
+        if (Scroll == 3) Scroll = 0;
+      }
+      if (step == 1) {
+        lcd.clear();
+        lcd.setCursor(2, 0);
+        lcd.print("Select mode:");
+        lcd.setCursor(1, 1);
+        lcd.print("UP=TX, DOWN=RX");
+      }
+
+      if (step == 2) {
+        if (tx_rx == false) {
+          radio.write(&testMessage, sizeof(testMessage));
+          lcd.setCursor(1, 0);
+          lcd.print(")))");
+        }
+      }
+    }
+    if (millis() - timer200ms >= 200) {
+      timer200ms = millis();
+      timerBrightness = millis();
+      if (step == 2) {
+        lcd.clear();
+        lcd.write(char(3));
+        lcd.setCursor(14, 0);
+        if (tx_rx == false) {
+          lcd.print("TX");
+        } else {
+          lcd.print("RX");
+        }
+      }
+    }
+    if (radio.available()) {
+      if (step == 2) {
+        radio.read(&ReceivedMessage, sizeof(ReceivedMessage));
+        if (is_sound_enabled) tone(zoomerPin, 2000, 200);
+        lcd.setCursor(1, 0);
+        lcd.print("(((");
+        lcd.setCursor(4, 1);
+        lcd.print("SIGNAL!");
+      }
+    }
+  }
+
+
 
   if (MODE == "settings") {
     if (button() == 1) {
@@ -1037,6 +1167,12 @@ void loop() {
           if (brDisplay == 10) brDisplay = 1;
           analogWrite(brPin, brDisplay * 10);
           break;
+        case 4:
+          is_blink_message_enabled = !is_blink_message_enabled;
+          break;
+        case 5:
+          is_blink_LED_enabled = !is_blink_LED_enabled;
+          break;
       }
     }
     if (button() == 2) {
@@ -1044,6 +1180,8 @@ void loop() {
       EEPROM.update(1, channel);
       EEPROM.update(2, brDisplay);
       EEPROM.update(3, ring);
+      EEPROM.update(4, bool(is_blink_message_enabled));
+      EEPROM.update(5, bool(is_blink_LED_enabled));
       select = 5;
       MODE = "menu";
     }
@@ -1053,7 +1191,7 @@ void loop() {
     }
     if (button() == 4) {
       while (button() != 0) {}
-      if (select != 3) select++;
+      if (select != 5) select++;
     }
     if (millis() - timer150ms >= 150) {
       timer150ms = millis();
@@ -1062,7 +1200,7 @@ void loop() {
       lcd.print("SETTINGS");
       lcd.setCursor(13, 0);
       lcd.print(select);
-      lcd.print("/3");
+      lcd.print("/5");
       lcd.setCursor(0, 1);
       lcd.write(165);
       lcd.setCursor(2, 1);
@@ -1080,8 +1218,17 @@ void loop() {
         lcd.print("Brightness:");
         lcd.setCursor(13, 1);
         lcd.print(brDisplay * 10);
-        lcd.setCursor(15, 1);
         lcd.print("%");
+      }
+      if (select == 4) {
+        lcd.print("Blink Disp:");
+        lcd.setCursor(13, 1);
+        lcd.print(is_blink_message_enabled ? "ON" : "OFF");
+      }
+      if (select == 5) {
+        lcd.print("Blink LED:");
+        lcd.setCursor(13, 1);
+        lcd.print(is_blink_LED_enabled ? "ON" : "OFF");
       }
     }
   }
@@ -1094,7 +1241,7 @@ void loop() {
       lcd.clear();
       lcd.print("OS:");
       lcd.setCursor(7, 0);
-      lcd.print("RCU1 v1.1");
+      lcd.print("RCU1 v1.3");
       lcd.setCursor(0, 1);
       lcd.print("By:");
       lcd.setCursor(10, 1);
@@ -1223,6 +1370,7 @@ void receiving(void) {
   MODE = "RX";
   lcd.display();
   analogWrite(brPin, brDisplay * 10);
+  digitalWrite(LEDPin, HIGH);
   lcd.clear();
   lcd.setCursor(3, 0);
   lcd.print("Receiving");
@@ -1285,10 +1433,13 @@ void receiving(void) {
   lcd.setCursor(0, 0);
   byte tempGetter = 0;
   for (tempGetter; tempGetter <= sizeof(ReceivedMessage); tempGetter++) {
+    if (is_blink_LED_enabled) digitalWrite(LEDPin, HIGH);
     if (ReceivedMessage[tempGetter] != 0) {
       if (is_sound_enabled) tone(zoomerPin, 2000, 75);
     }
-    delay(150);
+    delay(75);
+    if (is_blink_LED_enabled) digitalWrite(LEDPin, LOW);
+    delay(75);
     lcd.blink();
     if (tempGetter >= 16) lcd.setCursor((tempGetter - 16), 1);
     switch (ReceivedMessage[tempGetter]) {
@@ -1335,8 +1486,9 @@ void receiving(void) {
       case 40: lcd.print("0"); break;
     }
   }
+  digitalWrite(LEDPin, LOW);
   lcd.noBlink();
-  delay(5000);
+  delay(3000);
   MODE = "lobby";
   is_have_message = true;
 }
