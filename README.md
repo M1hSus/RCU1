@@ -1,4 +1,4 @@
-# RCU1 1.3
+# ![RCU1-logo](https://github.com/user-attachments/assets/0c65f8b7-19d9-43cf-94c5-5d7d1cb2eb11) RCU1 1.3
 Прошивка для DIY-раций RadiC-U1 (Обновленная)
 
 Изменения:
