@@ -487,10 +487,10 @@ void setup() {
   delay(500);
   lcd.print("=====");
   if (is_sound_enabled) {
-    tone(zoomerPin, 2500, 100); delay(125);
-    tone(zoomerPin, 3000, 100); delay(125);
-    tone(zoomerPin, 2000, 100); delay(125);
-    tone(zoomerPin, 2500, 100); delay(125);
+    tone(zoomerPin, 2500, 100); delay(100);
+    tone(zoomerPin, 3000, 100); delay(100);
+    tone(zoomerPin, 2000, 100); delay(100);
+    tone(zoomerPin, 2500, 100); delay(100);
     tone(zoomerPin, 3000, 100);
   }
   delay(250);
