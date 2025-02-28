@@ -487,10 +487,11 @@ void setup() {
   delay(500);
   lcd.print("=====");
   if (is_sound_enabled) {
-    tone(zoomerPin, 1046, 100); delay(450);
-    tone(zoomerPin, 1976, 100); delay(600);
-    tone(zoomerPin, 1568, 150); delay(250);
-    tone(zoomerPin, 78, 600);
+    tone(zoomerPin, 2500, 100); delay(125);
+    tone(zoomerPin, 3000, 100); delay(125);
+    tone(zoomerPin, 2000, 100); delay(125);
+    tone(zoomerPin, 2500, 100); delay(125);
+    tone(zoomerPin, 3000, 100);
   }
   delay(250);
   lcd.clear();
@@ -639,30 +640,24 @@ void loop() {
         case 1: MODE = "sender"; break;
         case 2:
           MODE = "senderqm";
-          select = 1;
-          break;
+          select = 1; break;
         case 3: MODE = "reader"; break;
         case 4:
           is_sound_enabled = !is_sound_enabled;
-          EEPROM.update(0, bool(is_sound_enabled));
-          break;
+          EEPROM.update(0, bool(is_sound_enabled)); break;
         case 5:
           is_lowPowerMode_enabled = !is_lowPowerMode_enabled;
           if (is_lowPowerMode_enabled) radio.setPALevel(RF24_PA_LOW);
-          else radio.setPALevel(RF24_PA_MAX);
-          break;
+          else radio.setPALevel(RF24_PA_MAX); break;
         case 6:
           select = 1;
-          MODE = "monophonyPlayer";
-          break;
+          MODE = "monophonyPlayer"; break;
         case 7:
           lcd.clear();
-          MODE = "distance_test";
-          break;
+          MODE = "distance_test"; break;
         case 8:
           select = 1;
-          MODE = "settings";
-          break;
+          MODE = "settings"; break;
         case 9: MODE = "aboutFirmware"; break;
       }
     }
@@ -698,13 +693,11 @@ void loop() {
         case 4:
           lcd.print("Sound:");
           lcd.setCursor(13, 1);
-          lcd.print(is_sound_enabled ? "ON" : "OFF");
-          break;
+          lcd.print(is_sound_enabled ? "ON" : "OFF"); break;
         case 5:
           lcd.print("PowerSave:");
           lcd.setCursor(13, 1);
-          lcd.print(is_lowPowerMode_enabled ? "ON" : "OFF");
-          break;
+          lcd.print(is_lowPowerMode_enabled ? "ON" : "OFF"); break;
         case 6: lcd.print("Monophony"); break;
         case 7: lcd.print("Distance test"); break;
         case 8: lcd.print("Settings"); break;
@@ -861,8 +854,7 @@ void loop() {
           SentMessage[15] = 25;
           SentMessage[16] = 15;
           SentMessage[17] = 21;
-          SentMessage[18] = 29;
-          break;
+          SentMessage[18] = 29; break;
         case 2:
           // WHERE ARE YOU?
           SentMessage[0] = 23;
@@ -878,8 +870,7 @@ void loop() {
           SentMessage[10] = 25;
           SentMessage[11] = 15;
           SentMessage[12] = 21;
-          SentMessage[13] = 29;
-          break;
+          SentMessage[13] = 29; break;
         case 3:
           // I AM FINE
           SentMessage[0] = 9;
@@ -890,8 +881,7 @@ void loop() {
           SentMessage[5] = 6;
           SentMessage[6] = 9;
           SentMessage[7] = 14;
-          SentMessage[8] = 5;
-          break;
+          SentMessage[8] = 5; break;
         case 4:
           // I AM COMING TO YOU
           SentMessage[0] = 9;
@@ -911,21 +901,18 @@ void loop() {
           SentMessage[14] = 0;
           SentMessage[15] = 25;
           SentMessage[16] = 15;
-          SentMessage[17] = 21;
-          break;
+          SentMessage[17] = 21; break;
         case 5:
           // YES!
           SentMessage[0] = 25;
           SentMessage[1] = 5;
           SentMessage[2] = 19;
-          SentMessage[3] = 30;
-          break;
+          SentMessage[3] = 30; break;
         case 6:
           // NO!
           SentMessage[0] = 14;
           SentMessage[1] = 15;
-          SentMessage[2] = 30;
-          break;
+          SentMessage[2] = 30; break;
         case 7:
           // TELL ME ABOUT IT
           SentMessage[0] = 20;
@@ -943,8 +930,7 @@ void loop() {
           SentMessage[12] = 20;
           SentMessage[13] = 0;
           SentMessage[14] = 9;
-          SentMessage[15] = 20;
-          break;
+          SentMessage[15] = 20; break;
       }
       MODE = "sender";
     }
@@ -973,27 +959,13 @@ void loop() {
       lcd.write(165);
       lcd.setCursor(2, 1);
       switch (select) {
-        case 1:
-          lcd.print("HELLO! HOW ARE YOU?");
-          break;
-        case 2:
-          lcd.print("WHERE ARE YOU?");
-          break;
-        case 3:
-          lcd.print("I AM FINE");
-          break;
-        case 4:
-          lcd.print("I AM COMING TO YOU");
-          break;
-        case 5:
-          lcd.print("YES!");
-          break;
-        case 6:
-          lcd.print("NO!");
-          break;
-        case 7:
-          lcd.print("TELL ME ABOUT IT");
-          break;
+        case 1: lcd.print("HELLO! HOW ARE YOU?"); break;
+        case 2: lcd.print("WHERE ARE YOU?"); break;
+        case 3: lcd.print("I AM FINE"); break;
+        case 4: lcd.print("I AM COMING TO YOU"); break;
+        case 5: lcd.print("YES!"); break;
+        case 6: lcd.print("NO!"); break;
+        case 7: lcd.print("TELL ME ABOUT IT"); break;
       }
     }
   }
@@ -1112,58 +1084,47 @@ void loop() {
           ring++;
           if (ring == 6) ring = 1;
           if (is_sound_enabled) {
-          switch (ring) {
-            case 1:
-              tone(zoomerPin, 1046, 75); delay(75);
-              tone(zoomerPin, 2000, 350); break;
-            case 2:
-              tone(zoomerPin, 3250, 175); delay(250);
-              tone(zoomerPin, 3250, 175); break;
-            case 3:
-              tone(zoomerPin, 2750, 75); delay(100);
-              tone(zoomerPin, 2750, 75); delay(100);
-              tone(zoomerPin, 2750, 75); delay(100);
-              tone(zoomerPin, 2750, 75); break;
-            case 4:
-              tone(zoomerPin, 2500, 100); delay(100);
-              tone(zoomerPin, 3000, 100); delay(100);
-              tone(zoomerPin, 2000, 100); delay(100);
-              tone(zoomerPin, 2500, 100); break;
-            case 5:
-              tone(zoomerPin, 2500, 75); delay(75);
-              tone(zoomerPin, 3000, 75); delay(75);
-              tone(zoomerPin, 2000, 75); delay(75);
-              tone(zoomerPin, 3000, 75); delay(75);
-              tone(zoomerPin, 3500, 75); delay(75);
-              tone(zoomerPin, 2500, 75); delay(75);
-              tone(zoomerPin, 3500, 75); delay(75);
-              tone(zoomerPin, 4000, 75); delay(75);
-              tone(zoomerPin, 3000, 75); break;
+            switch (ring) {
+              case 1:
+                tone(zoomerPin, 1046, 75); delay(75);
+                tone(zoomerPin, 2000, 350); break;
+              case 2:
+                tone(zoomerPin, 3250, 175); delay(250);
+                tone(zoomerPin, 3250, 175); break;
+              case 3:
+                tone(zoomerPin, 2750, 75); delay(100);
+                tone(zoomerPin, 2750, 75); delay(100);
+                tone(zoomerPin, 2750, 75); delay(100);
+                tone(zoomerPin, 2750, 75); break;
+              case 4:
+                tone(zoomerPin, 2500, 100); delay(100);
+                tone(zoomerPin, 3000, 100); delay(100);
+                tone(zoomerPin, 2000, 100); delay(100);
+                tone(zoomerPin, 2500, 100); break;
+              case 5:
+                tone(zoomerPin, 2500, 75); delay(75);
+                tone(zoomerPin, 3000, 75); delay(75);
+                tone(zoomerPin, 2000, 75); delay(75);
+                tone(zoomerPin, 3000, 75); delay(75);
+                tone(zoomerPin, 3500, 75); delay(75);
+                tone(zoomerPin, 2500, 75); delay(75);
+                tone(zoomerPin, 3500, 75); delay(75);
+                tone(zoomerPin, 4000, 75); delay(75);
+                tone(zoomerPin, 3000, 75); break;
             }
-          }
-          break;
+          } break;
         case 2:
           channel++;
           if (channel == 7) channel = 1;
-          radio.setChannel(channel * 20);
-          break;
+          radio.setChannel(channel * 20); break;
         case 3:
           brDisplay++;
           if (brDisplay == 10) brDisplay = 1;
-          analogWrite(brPin, brDisplay * 10);
-          break;
-        case 4:
-          is_blink_message_enabled = !is_blink_message_enabled;
-          break;
-        case 5:
-          is_blink_LED_enabled = !is_blink_LED_enabled;
-          break;
-        case 6:
-          typingMessage = !typingMessage;
-          break;
-        case 7:
-          is_AutoPowerMode_enabled = !is_AutoPowerMode_enabled;
-          break;
+          analogWrite(brPin, brDisplay * 10); break;
+        case 4: is_blink_message_enabled = !is_blink_message_enabled; break;
+        case 5: is_blink_LED_enabled = !is_blink_LED_enabled; break;
+        case 6: typingMessage = !typingMessage; break;
+        case 7: is_AutoPowerMode_enabled = !is_AutoPowerMode_enabled; break;
       }
     }
     if (button() == 2) {
@@ -1201,39 +1162,32 @@ void loop() {
         case 1:
           lcd.print("RingSound:");
           lcd.setCursor(15, 1);
-          lcd.print(ring);
-          break;
+          lcd.print(ring); break;
         case 2:
           lcd.print("Channel:");
           lcd.setCursor(15, 1);
-          lcd.print(channel);
-          break;
+          lcd.print(channel); break;
         case 3:
           lcd.print("Brightness:");
           lcd.setCursor(13, 1);
           lcd.print(brDisplay * 10);
-          lcd.print("%");
-          break;
+          lcd.print("%"); break;
         case 4:
           lcd.print("Blink Disp:");
           lcd.setCursor(13, 1);
-          lcd.print(is_blink_message_enabled ? "ON" : "OFF");
-          break;
+          lcd.print(is_blink_message_enabled ? "ON" : "OFF"); break;
         case 5:
           lcd.print("Blink LED:");
           lcd.setCursor(13, 1);
-          lcd.print(is_blink_LED_enabled ? "ON" : "OFF");
-          break;
+          lcd.print(is_blink_LED_enabled ? "ON" : "OFF"); break;
         case 6:
           lcd.print("Typing Mes:");
           lcd.setCursor(13, 1);
-          lcd.print(typingMessage ? "ON" : "OFF");
-          break;
+          lcd.print(typingMessage ? "ON" : "OFF"); break;
         case 7:
           lcd.print("AutoPS:");
           lcd.setCursor(13, 1);
-          lcd.print(is_AutoPowerMode_enabled ? "ON" : "OFF");
-          break;
+          lcd.print(is_AutoPowerMode_enabled ? "ON" : "OFF"); break;
       }
     }
   }
@@ -1263,12 +1217,7 @@ void loop() {
   if (MODE == "monophonyPlayer") {
     if (button() == 1) {
       while (button() != false) {}
-      if (is_sound_enabled) {
-        switch (select) {
-          case 1:
-            mp1(); break;
-        }
-      }
+      if (is_sound_enabled) if (select == 1) mp1();
     }
     if (button() == 2) {
       while (button() != false) {}
@@ -1287,11 +1236,7 @@ void loop() {
       lcd.setCursor(0, 1);
       lcd.write(165);
       lcd.setCursor(2, 1);
-      switch (select) {
-        case 1:
-          lcd.print("juki_batareyka");
-          break;
-      }
+      if (select == 1) lcd.print("juki_batareyka");
     }
   }
 
