@@ -618,6 +618,12 @@ void loop() {
       select = 1;
       MODE = "menu";
     }
+    if (button() == 2) {
+      lcd.setCursor(0, 1);
+      lcd.print("    > Sleep     ");
+      while (button() != false) {}
+      timerBrightness = 15000;
+    }
     if (button() == 3) {
       lcd.setCursor(0, 1);
       lcd.print(" > Open Sender  ");
@@ -629,6 +635,14 @@ void loop() {
       lcd.print(" > Open Reader  ");
       while (button() != false) {}
       MODE = "reader";
+    }
+    if (button() == 5) {
+      lcd.setCursor(0, 1);
+      lcd.print("  > Sound: ");
+      lcd.print(is_sound_enabled ? "OFF " : "ON  ");
+      while (button() != false) {}
+      is_sound_enabled = !is_sound_enabled;
+      timerLobby = 4000;
     }
   }
 
@@ -663,8 +677,9 @@ void loop() {
       }
     }
     if (button() == 2) {
-      MODE = "lobby";
+      while (button() != false) {}
       lcd.clear();
+      MODE = "lobby";
     }
     if (button() == 3 && select != 1) {
       while (button() != false) {};
@@ -1431,6 +1446,5 @@ byte button(void) {
     case 3: return 4; break;
     case 4: return 2; break;
     case 7: return 1; break;
-    default: return false; break;
-  }
+    default: return false; break; }
 }
