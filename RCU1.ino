@@ -479,7 +479,7 @@ void setup() {
   radio.setChannel(channel * 20);
   radio.setPALevel(RF24_PA_MAX);
   radio.setDataRate(RF24_250KBPS);
-  radio.setCRCLength(CRC_8);
+  radio.setCRCLength(RF24_CRC_8);
   radio.setAutoAck(1);
   radio.setRetries(3, 2);
   radio.enableAckPayload();
