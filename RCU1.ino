@@ -19,6 +19,7 @@
 #include <SPI.h>
 #include "nRF24L01.h"
 #include "RF24.h"
+#include "encryption.h"
 
 #define zoomerPin A1
 #define brPin 10
@@ -791,6 +792,7 @@ void loop() {
       timer150ms = millis();
       lcd.clear();
       byte tempSender = 0;
+      encrypt(SentMessage);
       for (tempSender; tempSender <= sizeof(SentMessage); tempSender++) {
         if (tempSender >= 16) lcd.setCursor(tempSender - 16, 1);
         switch (SentMessage[tempSender]) {
@@ -1215,8 +1217,8 @@ void loop() {
       timer150ms = millis();
       lcd.clear();
       lcd.print("OS:");
-      lcd.setCursor(5, 0);
-      lcd.print("RCU1 v1.3.1");
+      lcd.setCursor(7, 0);
+      lcd.print("RCU1 v1.4");
       lcd.setCursor(0, 1);
       lcd.print("By:");
       lcd.setCursor(10, 1);
@@ -1341,6 +1343,7 @@ void receiving(void) {
   lcd.setCursor(3, 1);
   lcd.print("message...");
   radio.read(&ReceivedMessage, sizeof(ReceivedMessage));
+  decrypt(ReceivedMessage);
   if (is_sound_enabled) {
     switch (ring) {
       case 1:
