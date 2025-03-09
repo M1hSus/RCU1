@@ -48,6 +48,7 @@ bool is_blink_message_enabled;  // EEPROM[4]
 bool is_blink_LED_enabled;      // EEPROM[5]
 bool typingMessage;             // EEPROM[6]
 bool is_AutoPowerMode_enabled;  // EEPROM[7]
+bool is_FastSelMode_enabled;    // EEPROM[8]
 
 bool is_have_message;
 byte ReceivedMessage[32];
@@ -460,6 +461,7 @@ void setup() {
   if (EEPROM[5] == 255) EEPROM.update(5, 1);
   if (EEPROM[6] == 255) EEPROM.update(6, 1);
   if (EEPROM[7] == 255) EEPROM.update(7, 0);
+  if (EEPROM[8] == 255) EEPROM.update(8, 1);
 
   EEPROM.get(0, is_sound_enabled);
   EEPROM.get(1, channel);
@@ -469,6 +471,8 @@ void setup() {
   EEPROM.get(5, is_blink_LED_enabled);
   EEPROM.get(6, typingMessage);
   EEPROM.get(7, is_AutoPowerMode_enabled);
+  EEPROM.get(8, is_FastSelMode_enabled);
+
   delay(500);
   lcd.print("=====");
   analogWrite(brPin, brDisplay * 10);
@@ -619,32 +623,36 @@ void loop() {
       select = 1;
       MODE = "menu";
     }
-    if (button() == 2) {
-      lcd.setCursor(0, 1);
-      lcd.print("    > Sleep     ");
-      while (button() != false) {}
-      timerBrightness = 15000;
+
+    if (is_FastSelMode_enabled) {
+      if (button() == 2) {
+        lcd.setCursor(0, 1);
+        lcd.print("    > Sleep     ");
+        while (button() != false) {}
+        timerBrightness = 16000;
+      }
+      if (button() == 3) {
+        lcd.setCursor(0, 1);
+        lcd.print(" > Open Sender  ");
+        while (button() != false) {}
+        MODE = "sender";
+      }
+      if (button() == 4) {
+        lcd.setCursor(0, 1);
+        lcd.print(" > Open Reader  ");
+        while (button() != false) {}
+        MODE = "reader";
+      }
+      if (button() == 5) {
+        lcd.setCursor(0, 1);
+        lcd.print("  > Sound: ");
+        lcd.print(is_sound_enabled ? "OFF " : "ON  ");
+        while (button() != false) {}
+        is_sound_enabled = !is_sound_enabled;
+        timerLobby = 4000;
+      }
     }
-    if (button() == 3) {
-      lcd.setCursor(0, 1);
-      lcd.print(" > Open Sender  ");
-      while (button() != false) {}
-      MODE = "sender";
-    }
-    if (button() == 4) {
-      lcd.setCursor(0, 1);
-      lcd.print(" > Open Reader  ");
-      while (button() != false) {}
-      MODE = "reader";
-    }
-    if (button() == 5) {
-      lcd.setCursor(0, 1);
-      lcd.print("  > Sound: ");
-      lcd.print(is_sound_enabled ? "OFF " : "ON  ");
-      while (button() != false) {}
-      is_sound_enabled = !is_sound_enabled;
-      timerLobby = 4000;
-    }
+    
   }
 
 
@@ -742,6 +750,7 @@ void loop() {
       lcd.setCursor(1, 1);
       delay(250);
       radio.stopListening();
+      encrypt(SentMessage);
       if (radio.write(&SentMessage, 32, true)) {
         lcd.clear();
         lcd.setCursor(6, 0);
@@ -755,6 +764,7 @@ void loop() {
       }
       digitalWrite(LEDPin, LOW);
       delay(3000);
+      decrypt(SentMessage);
       radio.startListening();
       lcd.cursor();
       MODE = "sender";
@@ -792,7 +802,6 @@ void loop() {
       timer150ms = millis();
       lcd.clear();
       byte tempSender = 0;
-      encrypt(SentMessage);
       for (tempSender; tempSender <= sizeof(SentMessage); tempSender++) {
         if (tempSender >= 16) lcd.setCursor(tempSender - 16, 1);
         switch (SentMessage[tempSender]) {
@@ -1143,6 +1152,7 @@ void loop() {
         case 5: is_blink_LED_enabled = !is_blink_LED_enabled; break;
         case 6: typingMessage = !typingMessage; break;
         case 7: is_AutoPowerMode_enabled = !is_AutoPowerMode_enabled; break;
+        case 8: is_FastSelMode_enabled = !is_FastSelMode_enabled; break;
       }
     }
     if (button() == 2) {
@@ -1154,6 +1164,7 @@ void loop() {
       EEPROM.update(5, bool(is_blink_LED_enabled));
       EEPROM.update(6, bool(typingMessage));
       EEPROM.update(7, bool(is_AutoPowerMode_enabled));
+      EEPROM.update(8, bool(is_FastSelMode_enabled));
       select = 8;
       MODE = "menu";
     }
@@ -1168,11 +1179,11 @@ void loop() {
     if (millis() - timer150ms >= 150) {
       timer150ms = millis();
       lcd.clear();
-      lcd.setCursor(2, 0);
+      lcd.setCursor(3, 0);
       lcd.print("SETTINGS");
       lcd.setCursor(13, 0);
       lcd.print(select);
-      lcd.print("/7");
+      lcd.print("/8");
       lcd.setCursor(0, 1);
       lcd.write(165);
       lcd.setCursor(2, 1);
@@ -1206,6 +1217,10 @@ void loop() {
           lcd.print("AutoPS:");
           lcd.setCursor(13, 1);
           lcd.print(is_AutoPowerMode_enabled ? "ON" : "OFF"); break;
+        case 8:
+          lcd.print("FastSelMod:");
+          lcd.setCursor(13, 1);
+          lcd.print(is_FastSelMode_enabled ? "ON" : "OFF"); break;
       }
     }
   }
@@ -1216,11 +1231,10 @@ void loop() {
     if (millis() - timer150ms >= 150) {
       timer150ms = millis();
       lcd.clear();
-      lcd.print("OS:");
-      lcd.setCursor(7, 0);
+      lcd.setCursor(4, 0);
       lcd.print("RCU1 v1.4");
       lcd.setCursor(0, 1);
-      lcd.print("By:");
+      lcd.print("BY:");
       lcd.setCursor(10, 1);
       lcd.print("MihSus");
       if (button() == 2) {
