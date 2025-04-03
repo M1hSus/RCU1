@@ -41,107 +41,27 @@ byte BAT = 3;
 bool is_lowPowerMode_enabled = false;
 
 bool is_sound_enabled;          // EEPROM[0]
-byte channel;                   // EEPROM[1]
-byte brDisplay;                 // EEPROM[2]
-byte ring;                      // EEPROM[3]
+byte channel, brDisplay, ring;  // EEPROM[1,2,3]
 bool is_blink_message_enabled;  // EEPROM[4]
 bool is_blink_LED_enabled;      // EEPROM[5]
 bool typingMessage;             // EEPROM[6]
 bool is_AutoPowerMode_enabled;  // EEPROM[7]
 bool is_FastSelMode_enabled;    // EEPROM[8]
+bool is_autoSleep_enabled;      // EEPROM[9]
 
 bool is_have_message;
 byte ReceivedMessage[32];
 byte SentMessage[32];
 
-//////// SYMBOLS ////////
-
-char soundOn[] = {
-  0b00000,
-  0b00100,
-  0b01110,
-  0b01110,
-  0b01110,
-  0b11111,
-  0b00100,
-  0b00000
-};
-
-char soundOff[] = {
-  0b00000,
-  0b00100,
-  0b01010,
-  0b01010,
-  0b01010,
-  0b11111,
-  0b00000,
-  0b00000
-};
-
-char noSignal[]{
-  0b11101,
-  0b10111,
-  0b10000,
-  0b11111,
-  0b10000,
-  0b01010,
-  0b00100,
-  0b01010
-};
-
-char haveSignal[]{
-  0b11111,
-  0b10101,
-  0b01110,
-  0b00100,
-  0b00100,
-  0b00100,
-  0b01110,
-  0b00000,
-};
-
-char play[]{
-  0b00000,
-  0b01000,
-  0b01100,
-  0b01110,
-  0b01100,
-  0b01000,
-  0b00000,
-  0b00000
-};
-
-char maxBAT[]{
-  0b00100,
-  0b01110,
-  0b01110,
-  0b01110,
-  0b01110,
-  0b01110,
-  0b01110,
-  0b00000,
-};
-
-char middleBAT[]{
-  0b00100,
-  0b01110,
-  0b01010,
-  0b01010,
-  0b01110,
-  0b01110,
-  0b01110,
-  0b00000,
-};
-
-char lowBAT[]{
-  0b01000,
-  0b11101,
-  0b10101,
-  0b10101,
-  0b10100,
-  0b10101,
-  0b11100,
-  0b00000,
+char symbols[][8] = {
+  {0b00000, 0b00100, 0b01110, 0b01110, 0b01110, 0b11111, 0b00100, 0b00000},
+  {0b00000, 0b00100, 0b01010, 0b01010, 0b01010, 0b11111, 0b00000, 0b00000},
+  {0b11101, 0b10111, 0b10000, 0b11111, 0b10000, 0b01010, 0b00100, 0b01010},
+  {0b11111, 0b10101, 0b01110, 0b00100, 0b00100, 0b00100, 0b01110, 0b00000},
+  {0b00000, 0b01000, 0b01100, 0b01110, 0b01100, 0b01000, 0b00000, 0b00000},
+  {0b00100, 0b01110, 0b01110, 0b01110, 0b01110, 0b01110, 0b01110, 0b00000},
+  {0b00100, 0b01110, 0b01010, 0b01010, 0b01110, 0b01110, 0b01110, 0b00000},
+  {0b01000, 0b11101, 0b10101, 0b10101, 0b10100, 0b10101, 0b11100, 0b00000},
 };
 //////// MONOPHONY ////////
 
@@ -424,14 +344,14 @@ void setup() {
   power.setSystemPrescaler(PRESCALER_2);
 
   lcd.begin(16, 2);
-  lcd.createChar(0, soundOn);
-  lcd.createChar(1, soundOff);
-  lcd.createChar(2, noSignal);
-  lcd.createChar(3, haveSignal);
-  lcd.createChar(4, play);
-  lcd.createChar(5, maxBAT);
-  lcd.createChar(6, middleBAT);
-  lcd.createChar(7, lowBAT);
+  lcd.createChar(0, symbols[0]);
+  lcd.createChar(1, symbols[1]);
+  lcd.createChar(2, symbols[2]);
+  lcd.createChar(3, symbols[3]);
+  lcd.createChar(4, symbols[4]);
+  lcd.createChar(5, symbols[5]);
+  lcd.createChar(6, symbols[6]);
+  lcd.createChar(7, symbols[7]);
   lcd.clear();
   lcd.setCursor(7, 0);
   lcd.print("Ra"); delay(100);
@@ -462,6 +382,7 @@ void setup() {
   if (EEPROM[6] == 255) EEPROM.update(6, 1);
   if (EEPROM[7] == 255) EEPROM.update(7, 0);
   if (EEPROM[8] == 255) EEPROM.update(8, 1);
+  if (EEPROM[9] == 255) EEPROM.update(9, 1);
 
   EEPROM.get(0, is_sound_enabled);
   EEPROM.get(1, channel);
@@ -472,6 +393,7 @@ void setup() {
   EEPROM.get(6, typingMessage);
   EEPROM.get(7, is_AutoPowerMode_enabled);
   EEPROM.get(8, is_FastSelMode_enabled);
+  EEPROM.get(9, is_autoSleep_enabled);
 
   delay(500);
   lcd.print("=====");
@@ -528,24 +450,31 @@ void loop() {
     BAT = 1;
     if (is_AutoPowerMode_enabled) is_lowPowerMode_enabled = true;
   }
-
-  if ((millis() - timerBrightness >= (!is_lowPowerMode_enabled ? 10000 : 5000))
+  if (is_autoSleep_enabled) {
+    if ((millis() - timerBrightness >= (!is_lowPowerMode_enabled ? 10000 : 5000))
       && (millis() - timerBrightness < (!is_lowPowerMode_enabled ? 15000 : 10000))) {
-    analogWrite(brPin, 5);
+      analogWrite(brPin, 5);
+    }
   }
-  if (button() > 0) {
+
+  if (button() != false) {
     timerBrightness = millis();
     analogWrite(brPin, brDisplay * 10);
     lcd.display();
   }
-  if (millis() - timerBrightness >= (!is_lowPowerMode_enabled ? 15000 : 10000) && MODE != "sleep") {
-    analogWrite(brPin, 0);
-    lcd.noDisplay();
-    lcd.clear();
-    lcd.setCursor(1, 0);
-    lcd.print("Have a message");
-    MODE = "sleep";
+  if (is_autoSleep_enabled) {
+    if (millis() - timerBrightness >= (!is_lowPowerMode_enabled ? 15000 : 10000) && MODE != "sleep") {
+      analogWrite(brPin, 0);
+      lcd.noDisplay();
+      lcd.clear();
+      if (is_blink_message_enabled) {
+        lcd.setCursor(1, 0);
+        lcd.print("Have a message");
+      }
+      MODE = "sleep";
+    }
   }
+
 
   static byte select;
 
@@ -649,10 +578,10 @@ void loop() {
         lcd.print(is_sound_enabled ? "OFF " : "ON  ");
         while (button() != false) {}
         is_sound_enabled = !is_sound_enabled;
+        EEPROM.update(0, is_sound_enabled);
         timerLobby = 4000;
       }
     }
-    
   }
 
 
@@ -1108,6 +1037,10 @@ void loop() {
       while (button() != false) {}
       switch (select) {
         case 1:
+          channel++;
+          if (channel == 7) channel = 1;
+          radio.setChannel(channel * 20); break;
+        case 2:
           ring++;
           if (ring == 6) ring = 1;
           if (is_sound_enabled) {
@@ -1140,19 +1073,16 @@ void loop() {
                 tone(zoomerPin, 3000, 75); break;
             }
           } break;
-        case 2:
-          channel++;
-          if (channel == 7) channel = 1;
-          radio.setChannel(channel * 20); break;
-        case 3:
+        case 3: is_autoSleep_enabled = !is_autoSleep_enabled; break;
+        case 4:
           brDisplay++;
           if (brDisplay == 10) brDisplay = 1;
           analogWrite(brPin, brDisplay * 10); break;
-        case 4: is_blink_message_enabled = !is_blink_message_enabled; break;
-        case 5: is_blink_LED_enabled = !is_blink_LED_enabled; break;
-        case 6: typingMessage = !typingMessage; break;
-        case 7: is_AutoPowerMode_enabled = !is_AutoPowerMode_enabled; break;
-        case 8: is_FastSelMode_enabled = !is_FastSelMode_enabled; break;
+        case 5: is_blink_message_enabled = !is_blink_message_enabled; break;
+        case 6: is_blink_LED_enabled = !is_blink_LED_enabled; break;
+        case 7: typingMessage = !typingMessage; break;
+        case 8: is_AutoPowerMode_enabled = !is_AutoPowerMode_enabled; break;
+        case 9: is_FastSelMode_enabled = !is_FastSelMode_enabled; break;
       }
     }
     if (button() == 2) {
@@ -1165,6 +1095,7 @@ void loop() {
       EEPROM.update(6, bool(typingMessage));
       EEPROM.update(7, bool(is_AutoPowerMode_enabled));
       EEPROM.update(8, bool(is_FastSelMode_enabled));
+      EEPROM.update(9, bool(is_autoSleep_enabled));
       select = 8;
       MODE = "menu";
     }
@@ -1174,7 +1105,7 @@ void loop() {
     }
     if (button() == 4) {
       while (button() != false) {}
-      if (select != 8) select++;
+      if (select != 9) select++;
     }
     if (millis() - timer150ms >= 150) {
       timer150ms = millis();
@@ -1183,41 +1114,45 @@ void loop() {
       lcd.print("SETTINGS");
       lcd.setCursor(13, 0);
       lcd.print(select);
-      lcd.print("/8");
+      lcd.print("/9");
       lcd.setCursor(0, 1);
       lcd.write(165);
       lcd.setCursor(2, 1);
       switch (select) {
         case 1:
-          lcd.print("RingSound:");
-          lcd.setCursor(15, 1);
-          lcd.print(ring); break;
-        case 2:
           lcd.print("Channel:");
           lcd.setCursor(15, 1);
           lcd.print(channel); break;
+        case 2:
+          lcd.print("RingSound:");
+          lcd.setCursor(15, 1);
+          lcd.print(ring); break;
         case 3:
+          lcd.print("AutoSleep:");
+          lcd.setCursor(13, 1);
+          lcd.print(is_autoSleep_enabled ? "ON" : "OFF"); break;
+        case 4:
           lcd.print("Brightness:");
           lcd.setCursor(13, 1);
           lcd.print(brDisplay * 10);
           lcd.print("%"); break;
-        case 4:
+        case 5:
           lcd.print("Blink Disp:");
           lcd.setCursor(13, 1);
           lcd.print(is_blink_message_enabled ? "ON" : "OFF"); break;
-        case 5:
+        case 6:
           lcd.print("Blink LED:");
           lcd.setCursor(13, 1);
           lcd.print(is_blink_LED_enabled ? "ON" : "OFF"); break;
-        case 6:
-          lcd.print("Typing Mes:");
+        case 7:
+          lcd.print("Typing Msg:");
           lcd.setCursor(13, 1);
           lcd.print(typingMessage ? "ON" : "OFF"); break;
-        case 7:
-          lcd.print("AutoPS:");
+        case 8:
+          lcd.print("AutoPSave:");
           lcd.setCursor(13, 1);
           lcd.print(is_AutoPowerMode_enabled ? "ON" : "OFF"); break;
-        case 8:
+        case 9:
           lcd.print("FastSelMod:");
           lcd.setCursor(13, 1);
           lcd.print(is_FastSelMode_enabled ? "ON" : "OFF"); break;
@@ -1284,9 +1219,8 @@ void loop() {
       timer150ms = millis();
       lcd.clear();
       lcd.setCursor(0, 0);
-      byte tempReader = 0;
       if (is_have_message) {
-        for (tempReader; tempReader <= sizeof(ReceivedMessage); tempReader++) {
+        for (byte tempReader = 0; tempReader <= sizeof(ReceivedMessage); tempReader++) {
           if (tempReader >= 16) lcd.setCursor((tempReader - 16), 1);
           switch (ReceivedMessage[tempReader]) {
             case 0: lcd.print(" "); break;
@@ -1391,8 +1325,7 @@ void receiving(void) {
   delay(1700);
   lcd.clear();
   lcd.setCursor(0, 0);
-  byte tempGetter = 0;
-  for (tempGetter; tempGetter <= sizeof(ReceivedMessage); tempGetter++) {
+  for (byte tempGetter = 0; tempGetter <= sizeof(ReceivedMessage); tempGetter++) {
     if (typingMessage) {
       if (is_blink_LED_enabled) digitalWrite(LEDPin, HIGH);
       if ((ReceivedMessage[tempGetter] != 0) && is_sound_enabled) tone(zoomerPin, 2000, 75);
